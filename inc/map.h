@@ -1,5 +1,5 @@
-#ifndef _HASH_H_
-#define _HASH_H_
+#ifndef _MAP_H_
+#define _MAP_H_
 
 #include <stdint.h>
 
@@ -14,6 +14,7 @@ typedef struct _map_{
     void (*add)(struct _map_*, char*, void*);
     void (*remove)(struct _map_*, char*);
     void* (*get)(struct _map_*, char*);
+    void (*set)(struct _map_*, char*, void*);
     void (*delete)(struct _map_*);
 }Map;
 
