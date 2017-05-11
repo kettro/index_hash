@@ -13,7 +13,7 @@ void* _mapGet(Map*, char*);
 void _mapDelete(Map*);
 void _mapSet(Map*, char*, void*);
 static Map* newMap_binNumbers(int);
-static Map* resizeMap(Map*, int);
+static Map* resizeMap(Map*);
 
 Symbol* findSymbolGivenHash(ArrayBin* self, uint32_t hash_val)
 {
@@ -34,12 +34,7 @@ Symbol* findSymbolGivenHash(ArrayBin* self, uint32_t hash_val)
 // Map Methods
 extern Map* newMap(void)
 {
-    return newMap_binNumbers(1);
-}
-
-static Map* newMap_binNumbers(int resize_count)
-{
-    int number_bins = resize_count * MAP_BASE_SIZE;
+    int number_bins = MAP_BASE_SIZE;
     // Now, use the bin_number to allocate that many bins.
     // allocate new Map
     Map* map = malloc(sizeof(Map));
@@ -59,9 +54,48 @@ static Map* newMap_binNumbers(int resize_count)
     // set the length of the map
     map->length = 0;
     // set the number of bins
-    map->bin_count = resize_count;
+    map->bin_count = number_bins;
 
     return map;
+}
+
+static Map* resizeMap(Map* self)
+{
+    // map has grown too large
+    // Need to resize it
+    // which means that I need to rebuild it in a new map, sorta.
+
+    int new_num_bins = self->bin_count + MAP_BASE_SIZE;
+    ArrayBin** new_bins = malloc(new_num_bins * sizeof(ArrayBin*));
+    int i, j;
+    for(i = 0; i < new_num_bins; i++){
+        new_bins[i] = newArrayBin();
+    }
+
+    for(i = 0; i < self->bin_count; i++){
+        // get all the Symbols from the bins
+        ArrayBin* bin = ((ArrayBin**)self->array_bins)[i];
+        for(;bin->length > 0; bin->length--){
+            // Get symbol from the old bins
+            Symbol* s = bin->symbolRoot->next;
+            bin->symbolRoot->next = s->next;
+            s->next->prev = bin->symbolRoot;
+            // put into new bins
+            int index = s->hash % new_num_bins;
+            Symbol* root = new_bins[index]->symbolRoot;
+            s->next = root->next;
+            s->prev = root;
+            root->next->prev = s;
+            root->next = s;
+        }
+        if(bin->symbolRoot != null){
+            free(bin->symbolRoot);
+        }
+        free(bin);
+        bin = null;
+    }
+    free(self->array_bins);
+    self->array_bins = new_bins;
 }
 
 ArrayBin* findArrayBinGivenHash(Map* self, uint32_t hash_val)
@@ -73,10 +107,25 @@ ArrayBin* findArrayBinGivenHash(Map* self, uint32_t hash_val)
 
 void _mapAdd(Map* self, char* key, void* data)
 {
-    // Add a new item to the Map
-    // If the arraybin is oversized, then we need to resize
-    // get the hash from the key;
-    // ensure to increment the of both the array bin as well as the map
+    // make new Symbol
+    Symbol* s = newSymbol(key, data);
+    // get the correct arrayBin
+    // set volatile to protect against compiler fuckery
+    volatile char index = (s->hash % self->bin_count);
+    volatile ArrayBin* bin = ((ArrayBin**)self->array_bins)[index];
+    if(bin->length + 1 >= bin->max_length){
+        // need to resize Array
+        resizeMap(self);
+        index = (s->hash % self->bin_count);
+        bin = ((ArrayBin**)self->array_bins)[index];
+    }
+    // add the new dude into the picture
+    s->prev = bin->symbolRoot;
+    s->next = bin->symbolRoot->next;
+    bin->symbolRoot->next->prev = s;
+    bin->symbolRoot->next = s;
+    bin->length++;
+    self->length++;
 }
 
 void _mapRemove(Map* self, char* key)

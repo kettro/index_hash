@@ -5,5 +5,11 @@
 
 uint32_t hash(char* key)
 {
-    return 0;
+    // djb2 algorithm
+    uint32_t hash_val = 5481;
+    int c;
+    while(c = *key++){
+        hash_val = ((hash_val << 5) + hash_val) + c;
+    }
+    return hash_val;
 }
