@@ -1,12 +1,15 @@
 // Includes
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 #include "map.h"
-#include "hash.h"
-#include "private_map_data_structures.h"
-#include "private_map.h"
-#include "symbol.h"
+#include "map_data_structures.h"
 
+// Hash
+static ArrayBin* findArrayBinGivenHash(Map*, uint32_t);
+static Symbol* findSymbolGivenHash(ArrayBin*, uint32_t);
+static uint32_t hash(char*);
+// Map
 void _mapAdd(Map*, char*, void*);
 void _mapRemove(Map*, char*);
 void* _mapGet(Map*, char*);
@@ -14,13 +17,41 @@ void _mapDelete(Map*);
 void _mapSet(Map*, char*, void*);
 static Map* newMap_binNumbers(int);
 static Map* resizeMap(Map*);
+// Symbol
+static Symbol* newSymbol(char*, void*);
+static Symbol* getSymbol(Map*, char*);
+static void deleteSymbol(Symbol*);
+// Array Bin
+static ArrayBin* newArrayBin();
+static void deleteArrayBin(ArrayBin* self);
 
-Symbol* findSymbolGivenHash(ArrayBin* self, uint32_t hash_val)
+/*
+ * NOTE:
+ * I would generally prefer to have these functions plit up into their
+ * own files. However, 
+ */
+
+/*** HASH ***/
+
+static uint32_t hash(char* key)
+{
+    // djb2 algorithm
+    uint32_t hash_val = 5481;
+    int c;
+    while(c = *key++){
+        hash_val = ((hash_val << 5) + hash_val) + c;
+    }
+    return hash_val;
+}
+
+static Symbol* findSymbolGivenHash(ArrayBin* self, uint32_t hash_val)
 {
     if(self == null){ return null; }
     Symbol* temp = self->symbolRoot->next;
     int i;
     for(i = 0; i < self->length; i++){
+        // Naively assuming no hash collisions
+        // As this is only GivenHash, not GivenHashAndKey
         if(temp->hash == hash_val){
             // found it
             return temp;
@@ -31,7 +62,15 @@ Symbol* findSymbolGivenHash(ArrayBin* self, uint32_t hash_val)
     return null;
 }
 
-// Map Methods
+static ArrayBin* findArrayBinGivenHash(Map* self, uint32_t hash_val)
+{
+    int i;
+    int mod = hash_val % self->bin_count;
+    return ((ArrayBin**)self->array_bins)[mod];
+}
+
+/*** MAP ***/
+
 extern Map* newMap(void)
 {
     int number_bins = MAP_BASE_SIZE;
@@ -39,7 +78,7 @@ extern Map* newMap(void)
     // allocate new Map
     Map* map = malloc(sizeof(Map));
     // allocate arrayBins, for each in the array (and all that implies)
-    ArrayBin** bin_array = (ArrayBin**)malloc(number_bins * sizeof(ArrayBin*));
+    ArrayBin** bin_array = (ArrayBin**)malloc(number_bins * sizeof(ArrayBin));
     int i;
     for(i = 0; i < number_bins; i++){
         bin_array[i] = (ArrayBin*)newArrayBin();
@@ -98,12 +137,6 @@ static Map* resizeMap(Map* self)
     self->array_bins = new_bins;
 }
 
-ArrayBin* findArrayBinGivenHash(Map* self, uint32_t hash_val)
-{
-    int i;
-    int mod = hash_val % self->bin_count;
-    return ((ArrayBin**)self->array_bins)[mod];
-}
 
 void _mapAdd(Map* self, char* key, void* data)
 {
@@ -168,4 +201,92 @@ void _mapDelete(Map* self)
     // then free self.
     free(self);
     self = null;
+}
+
+/*** SYMBOL ***/
+
+static Symbol* newSymbol(char* key, void* data)
+{
+    // allocate space for key and data
+    Symbol* symbol = (Symbol*)malloc(sizeof(Symbol));
+    symbol->key = (char*)malloc(sizeof(char) * strlen(key));
+    strcpy(symbol->key, key);
+    symbol->data = data;
+    symbol->hash = hash(key);
+    symbol->prev = null;
+    symbol->next = null;
+    return symbol;
+}
+
+static Symbol* getSymbol(Map* self, char* key)
+{
+    // get the hash
+    uint32_t hash_val = hash(key);
+    // get the ArrayBin
+    ArrayBin* bin = findArrayBinGivenHash(self, hash_val);
+    if(bin == null){ return null; }
+    // finally get the symbol
+    Symbol* symbol = findSymbolGivenHash(bin, hash_val);
+    return symbol; // if the symbol is null, then it's null
+}
+
+static void deleteSymbol(Symbol* symbol)
+{
+    if(symbol == null){ return; }
+    Symbol* tprev = symbol->prev;
+    Symbol* tnext = symbol->next;
+    tprev->next = tnext;
+    tnext->prev = tprev;
+    if(symbol->key != null){
+        free(symbol->key);
+        symbol->key = null;
+    }
+    if(symbol->data != null){
+        free(symbol->data);
+        symbol->data = null;
+    }
+    // Free the key
+    free(symbol->key);
+    // DO NOT FREE THE DATA: UP TO THE PROGRAMMER
+    free(symbol);
+    symbol = null;
+}
+
+/*** ARRAY BIN ***/
+
+static void deleteArrayBin(ArrayBin* self)
+{
+    // call delete on all the symbols in the bins
+    Symbol* root = self->symbolRoot;
+    Symbol* s = root->next;
+    Symbol* next = null;
+    for(; self->length > 0; self->length--){
+        deleteSymbol(root->next);
+    }
+    // then free the arrays of each bin
+    if( self->symbolRoot != null){
+        free(self->symbolRoot);
+        self->symbolRoot = null;
+    }
+    // then free the arraybin itself
+    free(self);
+    self = null;
+}
+
+static ArrayBin* newArrayBin()
+{
+    // allocate an ArrayBin
+    ArrayBin* bin = null;
+    bin = (ArrayBin*)calloc(1, sizeof(ArrayBin));
+    bin->length = 0;
+    bin->max_length = (uint16_t)(BIN_BASE_SIZE/2 + 1);
+
+    // allocate an array of Symbols
+    // using calloc  to init to 0
+    bin->symbolRoot = (Symbol*)calloc(1, sizeof(Symbol));
+    bin->symbolRoot->next = bin->symbolRoot;
+    bin->symbolRoot->prev = bin->symbolRoot;
+    // return the ArrayBin pointer
+
+    return bin;
 }

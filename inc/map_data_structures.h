@@ -1,5 +1,5 @@
-#ifndef _PRIVATE_MAP_DATA_STRUCTURES_H_
-#define _PRIVATE_MAP_DATA_STRUCTURES_H_
+#ifndef _MAP_DATA_STRUCTURES_H_
+#define _MAP_DATA_STRUCTURES_H_
 #include <stdint.h>
 #include <env.h>
 
@@ -10,15 +10,16 @@
 
 typedef struct _symbol_{
     uint32_t hash;
-    void* data;
-    char* key;
     struct _symbol_* next;
     struct _symbol_* prev;
+    void* data;
+    char* key;
 } Symbol;
-typedef struct {
-    Symbol* symbolRoot;
+
+typedef struct _arraybin_{
     uint16_t length;
     uint16_t max_length;
+    Symbol* symbolRoot;
 } ArrayBin;
 
 #endif
