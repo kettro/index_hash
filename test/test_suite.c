@@ -24,6 +24,7 @@ extern void testSuite(void)
     new_map->set(new_map, "newKey", &newnewVal);
     uint32_t* newnewRecovery = (uint32_t*)new_map->get(new_map, "newKey");
     printf("newnewRecovery = %u\n", *newnewRecovery);
+    new_map->delete(new_map);
 
 
 

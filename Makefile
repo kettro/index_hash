@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-c
+CFLAGS=-c -g
 
 SDIR=./src
 TDIR=./test

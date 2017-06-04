@@ -232,6 +232,7 @@ static Symbol* getSymbol(Map* self, char* key)
 
 static void deleteSymbol(Symbol* symbol)
 {
+    printf("in Delete Symbol\n");
     if(symbol == null){ return; }
     Symbol* tprev = symbol->prev;
     Symbol* tnext = symbol->next;
@@ -241,12 +242,6 @@ static void deleteSymbol(Symbol* symbol)
         free(symbol->key);
         symbol->key = null;
     }
-    if(symbol->data != null){
-        free(symbol->data);
-        symbol->data = null;
-    }
-    // Free the key
-    free(symbol->key);
     // DO NOT FREE THE DATA: UP TO THE PROGRAMMER
     free(symbol);
     symbol = null;
