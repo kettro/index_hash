@@ -11,19 +11,18 @@ static Symbol* findSymbolGivenHash(ArrayBin*, uint32_t);
 static uint32_t hash(char*);
 // Map
 void _mapAdd(Map*, char*, void*);
-void _mapRemove(Map*, char*);
+void _mapRemove(Map*, char*, char);
 void* _mapGet(Map*, char*);
-void _mapDelete(Map*);
+void _mapDelete(Map*, char);
 void _mapSet(Map*, char*, void*);
-static Map* newMap_binNumbers(int);
 static Map* resizeMap(Map*);
 // Symbol
 static Symbol* newSymbol(char*, void*);
 static Symbol* getSymbol(Map*, char*);
-static void deleteSymbol(Symbol*);
+static void deleteSymbol(Symbol*, char);
 // Array Bin
 static ArrayBin* newArrayBin();
-static void deleteArrayBin(ArrayBin* self);
+static void deleteArrayBin(ArrayBin*, char);
 
 /*
  * NOTE:
@@ -106,7 +105,7 @@ static Map* resizeMap(Map* self)
 
     int new_num_bins = self->bin_count + MAP_BASE_SIZE;
     ArrayBin** new_bins = malloc(new_num_bins * sizeof(ArrayBin*));
-    int i, j;
+    int i;
     for(i = 0; i < new_num_bins; i++){
         new_bins[i] = newArrayBin();
     }
@@ -137,6 +136,7 @@ static Map* resizeMap(Map* self)
     free(self->array_bins);
     self->array_bins = new_bins;
     self->bin_count = new_num_bins;
+    return self;
 }
 
 
@@ -163,7 +163,7 @@ void _mapAdd(Map* self, char* key, void* data)
     self->length++;
 }
 
-void _mapRemove(Map* self, char* key)
+void _mapRemove(Map* self, char* key, char data_delete)
 {
     if(self->length == 0){ return; }
     uint32_t hash_val = hash(key);
@@ -172,6 +172,14 @@ void _mapRemove(Map* self, char* key)
     if(symbol == null){ return; }
     bin->length--;
     self->length--;
+    // Remove from the tree
+    symbol->prev->next = symbol->next;
+    symbol->next->prev = symbol->prev;
+    free(symbol->key);
+    if(data_delete){
+        free(symbol->data);
+    }
+    symbol = null;
 }
 
 void* _mapGet(Map* self, char* key)
@@ -190,12 +198,12 @@ void _mapSet(Map* self, char* key, void* data)
     symbol->data = data;
 }
 
-void _mapDelete(Map* self)
+void _mapDelete(Map* self, char data_delete)
 {
     // call delete on all arraybins
     int i;
     for(i = 0; i < self->bin_count; i++){
-        deleteArrayBin(((ArrayBin**)self->array_bins)[i]);
+        deleteArrayBin(((ArrayBin**)self->array_bins)[i], data_delete);
     }
     // then free the arraybin array
     free(self->array_bins);
@@ -232,7 +240,7 @@ static Symbol* getSymbol(Map* self, char* key)
     return symbol; // if the symbol is null, then it's null
 }
 
-static void deleteSymbol(Symbol* symbol)
+static void deleteSymbol(Symbol* symbol, char data_delete)
 {
     if(symbol == null){ return; }
     Symbol* tprev = symbol->prev;
@@ -243,21 +251,23 @@ static void deleteSymbol(Symbol* symbol)
         free(symbol->key);
         symbol->key = null;
     }
-    // DO NOT FREE THE DATA: UP TO THE PROGRAMMER
+    if(data_delete){
+        free(symbol->data);
+    }
     free(symbol);
     symbol = null;
 }
 
 /*** ARRAY BIN ***/
 
-static void deleteArrayBin(ArrayBin* self)
+static void deleteArrayBin(ArrayBin* self, char data_delete)
 {
     // call delete on all the symbols in the bins
     Symbol* root = self->symbolRoot;
     Symbol* s = root->next;
     Symbol* next = null;
     for(; self->length > 0; self->length--){
-        deleteSymbol(root->next);
+        deleteSymbol(root->next, data_delete);
     }
     // then free the arrays of each bin
     if( self->symbolRoot != null){

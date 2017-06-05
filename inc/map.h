@@ -12,10 +12,10 @@ typedef struct _map_{
 
     // "Methods"
     void (*add)(struct _map_*, char*, void*);
-    void (*remove)(struct _map_*, char*);
+    void (*remove)(struct _map_*, char*, char);
     void* (*get)(struct _map_*, char*);
     void (*set)(struct _map_*, char*, void*);
-    void (*delete)(struct _map_*);
+    void (*delete)(struct _map_*, char);
 }Map;
 
 Map* newMap();
