@@ -27,8 +27,8 @@ static void deleteArrayBin(ArrayBin* self);
 
 /*
  * NOTE:
- * I would generally prefer to have these functions plit up into their
- * own files. However, 
+ * I would generally prefer to have these functions split up into their
+ * own files. For ease of importing it, however, I have it like this.
  */
 
 /*** HASH ***/
@@ -126,6 +126,7 @@ static Map* resizeMap(Map* self)
             s->prev = root;
             root->next->prev = s;
             root->next = s;
+            new_bins[index]->length++;
         }
         if(bin->symbolRoot != null){
             free(bin->symbolRoot);
@@ -135,6 +136,7 @@ static Map* resizeMap(Map* self)
     }
     free(self->array_bins);
     self->array_bins = new_bins;
+    self->bin_count = new_num_bins;
 }
 
 
@@ -232,7 +234,6 @@ static Symbol* getSymbol(Map* self, char* key)
 
 static void deleteSymbol(Symbol* symbol)
 {
-    printf("in Delete Symbol\n");
     if(symbol == null){ return; }
     Symbol* tprev = symbol->prev;
     Symbol* tnext = symbol->next;
