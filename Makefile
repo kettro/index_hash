@@ -1,10 +1,11 @@
 CC=gcc
-CFLAGS=-c -g
+CFLAGS=
 
 SDIR=./src
 TDIR=./test
 IDIR=./inc
 ODIR=./output
+EDIR=./export
 
 EXEC=$(ODIR)/a
 SRCS= $(wildcard $(SDIR)/*.c)
@@ -25,4 +26,9 @@ $(ODIR)/%.o:$(SDIR)/%.c
 	$(CC) $(CFLAGS) $(INCS) -c $< -o $@
 
 clean:
-	rm -f *.o $(ODIR)/*.o
+	rm -f *.o $(ODIR)/*.o $(EDIR)/*
+
+build_export:
+	mkdir -p $(EDIR)
+	$(CC) $(CFLAGS) $(INCS) -c $(SDIR)/map.c -o $(EDIR)/map.o
+	cp $(IDIR)/map.h $(EDIR)/map.h
